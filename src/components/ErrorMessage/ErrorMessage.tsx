@@ -5,7 +5,7 @@ interface ErrorMessageType {
 const ErrorMessage = ({ error }: ErrorMessageType) => {
   return (
     <div>
-      <p className={css.text}>{error} Please try again...</p>
+      <p className={css.text}>{error}.😕 Please try again...</p>
     </div>
   );
 };

@@ -1,50 +1,62 @@
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import SearchBar from "../SearchBar/SearchBar";
 import { fetchMovies } from "../../services/movieService";
 import type { Movie } from "../../types/movie";
 import { useState } from "react";
-import axios from "axios";
+import ReactPaginate from "react-paginate";
 import MovieGrid from "../MovieGrid/MovieGrid";
 import Loader from "../Loader/Loader";
 import ErrorMessage from "../ErrorMessage/ErrorMessage";
-import toast, { Toaster } from "react-hot-toast";
+import css from "./App.module.css";
+// import toast, { Toaster } from "react-hot-toast";
 import MovieModal from "../MovieModal/MovieModal";
-
 function App() {
-  const [movies, setMovies] = useState<Movie[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  // const [movies, setMovies] = useState<Movie[]>([]);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [currentMovie, setCurrentMovie] = useState<Movie | null>(null);
+  const { data, isLoading, isError, isSuccess, error } = useQuery({
+    queryKey: ["movies", query, page],
+    queryFn: () => fetchMovies(query, page),
+    enabled: query.trim() !== "",
+    placeholderData: keepPreviousData,
+    staleTime: 1000,
+  });
   const handleSearch = async (query: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-      setMovies([]);
-      const data = await fetchMovies(query);
-      // Сортировка по рейтингу: от высоких к низким
-      const sortedByRating = data.sort((a, b) => {
-        // Если рейтинг отсутствует, считаем как 0
-        const ratingA = a.vote_average || 0;
-        const ratingB = b.vote_average || 0;
-        return ratingB - ratingA; // от высокого к низкому
-      });
+    setQuery(query);
+    setPage(1);
 
-      setMovies(sortedByRating);
-
-      if (sortedByRating.length === 0) {
-        toast.error("No movies found for your request.");
-      }
-    } catch (err) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.status_message || err.message);
-      } else if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Unknown error occurred");
-      }
-    } finally {
-      setLoading(false);
-    }
+    // try {
+    //   setLoading(true);
+    //   setError(null);
+    //   setMovies([]);
+    //   const data = await fetchMovies(query);
+    //   // Сортировка по рейтингу: от высоких к низким
+    //   const sortedByRating = data.sort((a, b) => {
+    //     // Если рейтинг отсутствует, считаем как 0
+    //     const ratingA = a.vote_average || 0;
+    //     const ratingB = b.vote_average || 0;
+    //     return ratingB - ratingA; // от высокого к низкому
+    //   });
+    //   setMovies(sortedByRating);
+    //   if (sortedByRating.length === 0) {
+    //     toast.error("No movies found for your request.");
+    //   }
+    // } catch (err) {
+    //   if (axios.isAxiosError(err)) {
+    //     setError(err.response?.data?.status_message || err.message);
+    //   } else if (err instanceof Error) {
+    //     setError(err.message);
+    //   } else {
+    //     setError("Unknown error occurred");
+    //   }
+    // } finally {
+    //   setLoading(false);
+    // }
   };
+  // const handlePageChange = ({ selected }: { selected: number }) => {
+  //   setPage(selected + 1);
+  // };
   const openModal = (movie: Movie) => {
     setCurrentMovie(movie);
   };
@@ -52,15 +64,43 @@ function App() {
   const closeModal = () => {
     setCurrentMovie(null);
   };
+
+  const totalPages = data?.total_pages ?? 0;
   return (
     <div>
-      <Toaster position="top-center" reverseOrder={false} />
+      {/* <Toaster position="top-center" reverseOrder={false} /> */}
       <SearchBar onSubmit={handleSearch} />
-      {loading && <Loader />}
-      {movies.length > 0 && (
-        <MovieGrid movies={movies} onSelect={(movie) => openModal(movie)} />
+      {isLoading && <Loader />}
+
+      {isSuccess && (
+        <>
+          {data?.results.length ? (
+            <>
+              <MovieGrid movies={data.results} onSelect={openModal} />
+              {totalPages > 1 && (
+                <ReactPaginate
+                  breakLabel="..."
+                  onPageChange={({ selected }) => setPage(selected + 1)}
+                  pageRangeDisplayed={5}
+                  pageCount={totalPages}
+                  nextLabel="→"
+                  previousLabel="←"
+                  forcePage={page - 1}
+                  containerClassName={css.pagination}
+                  activeClassName={css.active}
+                  marginPagesDisplayed={1}
+                />
+              )}
+            </>
+          ) : (
+            <div className={css.noResults}>
+              Nothing has been found by your request 😕
+            </div>
+          )}
+        </>
       )}
-      {error && <ErrorMessage error={error} />}
+
+      {isError && <ErrorMessage error={error.message} />}
       {currentMovie && <MovieModal movie={currentMovie} onClose={closeModal} />}
     </div>
   );

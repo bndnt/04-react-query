@@ -55,3 +55,11 @@
 .button:hover {
   background-color: #004182;
 }
+@media (max-width: 450px) {
+  .input {
+    width: calc(100% - 92px);
+  }
+  .header {
+    padding: 5px 5px 10px;
+  }
+}
